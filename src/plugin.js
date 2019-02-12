@@ -16,6 +16,8 @@ import getInstanceIndex from './getInstanceIndex';
 import createHandleStats from './createHandleStats';
 import createLogger from './createLogger';
 
+import HtmlWebpackPlugin from 'html-webpack-plugin';
+
 class AutoDLLPlugin {
   constructor(settings) {
     // first, we store a reference to the settings passed by the user as is.
@@ -136,14 +138,20 @@ class AutoDLLPlugin {
       };
 
       compiler.hooks.compilation.tap('AutoDllPlugin', compilation => {
-        if (!compilation.hooks.htmlWebpackPluginBeforeHtmlGeneration) {
+        let beforeGenerationHook;
+        if (compilation.hooks.htmlWebpackPluginBeforeHtmlGeneration) {
+          // HtmlWebpackPlugin 3.x
+          beforeGenerationHook = compilation.hooks.htmlWebpackPluginBeforeHtmlGeneration;
+        } else if (HtmlWebpackPlugin.version === 4) {
+          // HtmlWebpackPlugin >= 4.x
+          beforeGenerationHook = HtmlWebpackPlugin.getHooks(compilation).beforeAssetTagGeneration;
+        }
+
+        if (!beforeGenerationHook) {
           return;
         }
 
-        compilation.hooks.htmlWebpackPluginBeforeHtmlGeneration.tapAsync(
-          'AutoDllPlugin',
-          doCompilation
-        );
+        beforeGenerationHook.tapAsync('AutoDllPlugin', doCompilation);
       });
     }
   }
